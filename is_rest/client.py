@@ -3,7 +3,8 @@ import logging
 
 import xmltodict
 
-from is_rest.entities import Resource
+from is_rest.entities import Resource, CourseInfo, CourseStudents, SeminarStudents, NotepadContent, \
+    NoteInfo, NotesInfo
 
 log = logging.getLogger(__name__)
 
@@ -86,30 +87,31 @@ class IsApiClient:
         """
         return self.__faculty_id
 
-    def operation(self, operation, **params) -> Resource:
+    def operation(self, operation, **params) -> dict:
         """Invokes operation of the API
         Args:
             operation(str): Name of the operation
             **params: Optional params for the operation
 
-        Returns(Resource): Resource instance
+        Returns(dict): Resource instance
 
         """
         response = self.__make_request(operation=operation, **params)
         serialized = serialize(response=response)
-        resource = Resource(serialized)
+        resource = serialized
         return resource
 
-    def course_info(self):
+    def course_info(self) -> CourseInfo:
         """
         URL: https://is.muni.cz/auth/napoveda/technicka/bloky_api?fakulta=1433;obdobi=7024;predmet=990599#predmet-info
         Returns:
 
         """
-        return self.operation(operation='predmet-info')
+        response = self.operation(operation='predmet-info')
+        return CourseInfo(response)
 
     def course_list_students(self, registered: bool = False,
-                             terminated: bool = False, inactive: bool = False) -> Resource:
+                             terminated: bool = False, inactive: bool = False) -> CourseStudents:
         """List all of the students in the course
 
         Args:
@@ -130,10 +132,11 @@ class IsApiClient:
         if inactive:
             params['vcneaktiv'] = 'a'
 
-        return self.operation(operation='predmet-seznam', **params)
+        response = self.operation(operation='predmet-seznam', **params)
+        return CourseStudents(response)
 
     def seminar_list(self, seminars: list, terminated: bool = False,
-                     inactive: bool = False) -> Resource:
+                     inactive: bool = False) -> SeminarStudents:
         """List students in the seminars
 
         Args:
@@ -150,9 +153,10 @@ class IsApiClient:
         if inactive:
             params['vcneaktiv'] = 'a'
 
-        return self.operation(operation='seminar-seznam', **params)
+        res = self.operation(operation='seminar-seznam', **params)
+        return SeminarStudents(res)
 
-    def notepad_content(self, shortcut: str, *ucos) -> Resource:
+    def notepad_content(self, shortcut: str, *ucos) -> NotepadContent:
         """Gets notepad content
         Args:
             shortcut(str): Shortcut name of the notepad
@@ -160,17 +164,19 @@ class IsApiClient:
 
         Returns(Resource): Resource instance
         """
-        return self.operation(operation='blok-dej-obsah', zkratka=shortcut, uco=ucos)
+        res = self.operation(operation='blok-dej-obsah', zkratka=shortcut, uco=ucos)
+        return NotepadContent(res)
 
-    def notepad_list(self) -> Resource:
+    def notepad_list(self) -> NotesInfo:
         """List of all notepads
         Returns(Resource): Gets instance of the reources
         """
-        return self.operation(operation='bloky-seznam')
+        res = self.operation(operation='bloky-seznam')
+        return NotesInfo(res)
 
     def notepad_new(self, name: str, shortcut: str,
                     visible: bool = False, complete: bool = True,
-                    statistic: bool = False) -> Resource:
+                    statistic: bool = False) -> dict:
         """Creates a new notepad
         Args:
             name(str): Name of the notepad
@@ -179,7 +185,7 @@ class IsApiClient:
             complete(bool):
             statistic(bool): Should the statistic be generated
 
-        Returns:
+        Returns(dict):
 
         """
         params = dict(
@@ -193,7 +199,8 @@ class IsApiClient:
 
         return self.operation(operation='blok-novy', **params)
 
-    def notepad_update(self, shortcut, uco, content, last_change=None, override=True):
+    def notepad_update(self, shortcut, uco, content,
+                       last_change=None, override=True) -> dict:
         """Updates notepad content
         Args:
             shortcut(str): Notepad shortcut identification
