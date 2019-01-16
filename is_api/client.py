@@ -3,8 +3,8 @@ import logging
 
 import xmltodict
 
-from is_rest.entities import Resource, CourseInfo, CourseStudents, SeminarStudents, NotepadContent, \
-    NoteInfo, NotesInfo
+from is_api.entities import CourseInfo, CourseStudents, SeminarStudents, NotepadContent, \
+    NotesInfo
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +55,8 @@ class IsApiClient:
         self.__token = token
         self.__course = course_code
         self.__faculty_id = faculty_id
+        log.debug(f"[INIT] Created client({self.domain}), "
+                  f"course={self.course}, faculty={self.faculty}")
 
     @property
     def url(self) -> str:
@@ -62,7 +64,7 @@ class IsApiClient:
 
         Returns(str): Full url
         """
-        return f"https://#{self.domain}/export/pb_blok_api"
+        return f"https://{self.domain}/export/pb_blok_api"
 
     @property
     def domain(self) -> str:
@@ -70,7 +72,7 @@ class IsApiClient:
 
         Returns(str): Domain
         """
-        return self.domain
+        return self.__domain
 
     @property
     def course(self) -> str:
@@ -99,6 +101,7 @@ class IsApiClient:
         response = self.__make_request(operation=operation, **params)
         serialized = serialize(response=response)
         resource = serialized
+        log.debug(f"[SERIAL] Serialized response: {resource}")
         return resource
 
     def course_info(self) -> CourseInfo:
@@ -256,7 +259,9 @@ class IsApiClient:
             **params: Optional params for the operation
         Returns(Response): Rest client response
         """
-        url_params = {**params, **self.__main_params, "operation": operation}
+        url_params = {**params, **self.__main_params, "operace": operation}
         serialized_params = params_serialize(url_params)
+        log.debug(f"[REQ] New Request: {self.url} : {serialized_params}")
         response = requests.get(self.url, params=serialized_params)
+        log.debug(f"[RES] Response[{response.status_code}]: {response.content}")
         return response

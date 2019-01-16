@@ -6,8 +6,13 @@ name = "pypi"
 [packages]
 requests = "*"
 xmltodict = "*"
+coloredlogs = "*"
 
 [dev-packages]
+pytest = "*"
+coverage = "*"
+mock = "*"
+responses = "*"
 
 [requires]
 python_version = "3.6"

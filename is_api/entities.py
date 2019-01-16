@@ -1,3 +1,6 @@
+from typing import List
+
+
 class Resource(object):
 
     def __init__(self, content):
@@ -27,32 +30,32 @@ class ChangedSub(Resource):
 class Seminar(Resource):
     class StudentsSub(Resource):
         @property
-        def max(self):
-            return self['MAX_STUDENTU']
+        def max(self) -> int:
+            return int(self['MAX_STUDENTU'])
 
         @property
-        def count(self):
-            return self['POCET_STUDENTU_VE_SKUPINE']
+        def count(self) -> int:
+            return int(self['POCET_STUDENTU_VE_SKUPINE'])
 
     class DatesSub(Resource):
         @property
-        def signin_from(self):
+        def signin_from(self) -> str:
             return self['PRIHLASIT_OD']
 
         @property
-        def signin_to(self):
+        def signin_to(self) -> str:
             return self['PRIHLASIT_DO']
 
         @property
-        def signout_to(self):
+        def signout_to(self) -> str:
             return self['ODHLASIT_DO']
 
     @property
-    def id(self):
-        return self['SEMINAR_ID']
+    def id(self) -> int:
+        return int(self['SEMINAR_ID'])
 
     @property
-    def label(self):
+    def label(self) -> str:
         return self['OZNACENI']
 
     @property
@@ -68,45 +71,47 @@ class Seminar(Resource):
         return Seminar.StudentsSub(self)
 
     @property
-    def entity(self):
-        return self._content['SEMINAR']
+    def entity(self) -> dict:
+        return self._content
 
     @property
-    def note(self):
+    def note(self) -> str:
         return self['POZNAMKA']
 
 
-class Teacher(Resource):
+class AbstractPerson(Resource):
     @property
-    def entity(self):
-        return self._content['VYUCUJICI']
-
-    @property
-    def first_name(self):
+    def first_name(self) -> str:
         return self['JMENO']
 
     @property
-    def last_name(self):
+    def last_name(self) -> str:
         return self['PRIJIMENI']
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         return self['CELE_JMENO']
 
     @property
-    def role(self):
-        return self['ROLE']
+    def uco(self) -> int:
+        return self['UCO']
+
+
+class Teacher(AbstractPerson):
+    @property
+    def entity(self) -> dict:
+        return self._content
 
     @property
-    def uco(self):
-        return self['UCO']
+    def role(self) -> str:
+        return self['ROLE']
 
 
 class CourseInfo(Resource):
     class CourseSub(Resource):
         @property
         def id(self):
-            return self['PREDMET_ID']
+            return int(self['PREDMET_ID'])
 
         @property
         def name(self):
@@ -117,21 +122,21 @@ class CourseInfo(Resource):
             return self['NAZEV_PREDMETU_ANGL']
 
         @property
-        def code_name(self):
+        def code(self):
             return self['KOD_PREDMETU']
 
         @property
         def number_of_students(self):
-            return self['POCET_ZAPSANYCH_STUDENTU']
+            return int(self['POCET_ZAPSANYCH_STUDENTU'])
 
         @property
         def number_of_registered_students(self):
-            return self['POCET_ZAREG_STUDENTU']
+            return int(self['POCET_ZAREG_STUDENTU'])
 
     class FacultySub(Resource):
         @property
         def id(self):
-            return self['FAKLUTA_ID']
+            return int(self['FAKULTA_ID'])
 
         @property
         def shortcut(self):
@@ -150,26 +155,26 @@ class CourseInfo(Resource):
         return CourseInfo.FacultySub(self)
 
     @property
-    def seminars(self):
-        return [Seminar(sem) for sem in self['SEMINARE']]
+    def seminars(self) -> List[Seminar]:
+        return [Seminar(sem) for sem in self['SEMINARE'].values()]
 
     @property
-    def teachers(self):
-        return [Teacher(teach) for teach in self['VYUCUJICI_SEZNAM']]
+    def teachers(self) -> List[Teacher]:
+        return [Teacher(teach) for teach in self['VYUCUJICI_SEZNAM'].values()]
 
 
 class NotepadContent(Resource):
     class StudentSub(Resource):
         @property
-        def entity(self):
-            return self._content['STUDENT']
+        def entity(self) -> dict:
+            return self._content
 
         @property
-        def content(self):
+        def content(self) -> str:
             return self['OBSAH']
 
         @property
-        def uco(self):
+        def uco(self) -> int:
             return self['UCO']
 
         @property
@@ -177,30 +182,18 @@ class NotepadContent(Resource):
             return ChangedSub(self)
 
     @property
-    def entity(self):
+    def entity(self) -> dict:
         return self._content['BLOKY_OBSAH']
 
     @property
     def students(self) -> list:
-        return [NotepadContent.StudentSub(stud) for stud in self.entity]
+        return [NotepadContent.StudentSub(stud) for stud in self.entity.values()]
 
 
-class StudentSub(Resource):
+class StudentSub(AbstractPerson):
     @property
     def entity(self):
         return self._content['STUDENT']
-
-    @property
-    def first_name(self):
-        return self['JMENO']
-
-    @property
-    def last_name(self):
-        return self['PRIJMENI']
-
-    @property
-    def full_name(self):
-        return self['CELE_JMENO']
 
     @property
     def study_status(self):
@@ -209,10 +202,6 @@ class StudentSub(Resource):
     @property
     def registration_status(self):
         return self['STAV_ZAPISU']
-
-    @property
-    def uco(self):
-        return self['UCO']
 
     @property
     def course_elimination(self):
@@ -296,6 +285,3 @@ class Exams(Resource):
     @property
     def series(self):
         return None
-
-
-

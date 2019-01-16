@@ -1,15 +1,15 @@
-= IS MUNI API python wrapper
+# IS MUNI API python wrapper
 
 
-== Getting Started
+## Getting Started
 
 
 
-== Prerequisites
+### Prerequisites
 
 - requires Python 3.6 or higher
 
-=== Install
+### Install
 
 - Using PIP:
 [source, sh]
@@ -23,14 +23,14 @@ pip install https://gitlab.fi.muni.cz/grp-kontr2/is-api.git
 pipenv install https://gitlab.fi.muni.cz/grp-kontr2/is-api.git
 ----
 
-=== Examples
+## Examples
 
 [source, python]
 ----
 # TBD
 ----
 
-== Development
+## Development
 
 TBD
 
