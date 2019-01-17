@@ -5,7 +5,7 @@ from is_api.version import IS_MUNI_VERSION
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-requirements = ['requests']
+requirements = ['requests', 'lxml']
 
 extra_requirements = {
     'dev': [

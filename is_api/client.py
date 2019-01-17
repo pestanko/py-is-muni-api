@@ -1,17 +1,14 @@
-import requests
 import logging
 
-import xmltodict
+import requests
+from lxml import etree
 
-from is_api.entities import CourseInfo, CourseStudents, SeminarStudents, NotepadContent, \
-    NotesInfo
+from is_api.entities import CourseInfo, CourseStudents, NotepadContent, NotesInfo, SeminarStudents
 
 log = logging.getLogger(__name__)
 
 """
-    
-    URL: https://is.muni.cz/auth/napoveda/technicka/bloky_api?fakulta=1433;obdobi=7024;predmet=990599
-
+URL: https://is.muni.cz/auth/napoveda/technicka/bloky_api?fakulta=1433;obdobi=7024;predmet=990599
 """
 
 
@@ -33,18 +30,18 @@ def params_serialize(params: dict) -> str:
     return builder
 
 
-def serialize(response: requests.Response) -> dict:
+def serialize(response: requests.Response) -> etree.Element:
     """Serialize xml response to the dict
     Args:
         response(requests.Response): XML response
     Returns(dict): Serialized dictionary
     """
-    return xmltodict.parse(response.content)
+    return etree.fromstring(response.content)
 
 
-class IsApiClient:
+class HttpClient:
     def __init__(self, domain: str, token: str, course_code: str, faculty_id: int):
-        """Creates IS API client
+        """Creates HTTP Client wrapper
         Args:
             domain(str): Is domain (ex. is.muni.cz)
             token(str): Token for the Notes api
@@ -55,8 +52,6 @@ class IsApiClient:
         self.__token = token
         self.__course = course_code
         self.__faculty_id = faculty_id
-        log.debug(f"[INIT] Created client({self.domain}), "
-                  f"course={self.course}, faculty={self.faculty}")
 
     @property
     def url(self) -> str:
@@ -89,20 +84,98 @@ class IsApiClient:
         """
         return self.__faculty_id
 
-    def operation(self, operation, **params) -> dict:
+    def operation(self, operation, **params) -> etree.Element:
         """Invokes operation of the API
         Args:
             operation(str): Name of the operation
             **params: Optional params for the operation
 
-        Returns(dict): Resource instance
+        Returns: Resource instance
 
         """
         response = self.__make_request(operation=operation, **params)
-        serialized = serialize(response=response)
-        resource = serialized
+        resource = serialize(response=response)
         log.debug(f"[SERIAL] Serialized response: {resource}")
         return resource
+
+    def __make_request(self, operation, **params) -> requests.Response:
+        """Creates request to the API
+        Args:
+            operation(str): Operation name
+            **params: Optional params for the operation
+        Returns(Response): Rest client response
+        """
+        url_params = {**params, **self.__main_params, "operace": operation}
+        serialized_params = params_serialize(url_params)
+        log.debug(f"[REQ] New Request: {self.url} : {serialized_params}")
+        response = requests.get(self.url, params=serialized_params)
+        log.debug(f"[RES] Response[{response.status_code}]: {response.content}")
+        return response
+
+    @property
+    def __main_params(self) -> dict:
+        """Token, faculty and course params
+        Returns(dict): Dictionary of the main params
+        """
+        return dict(
+            klic=self.__token,
+            fakulta=self.faculty,
+            kod=self.course
+        )
+
+    def __str__(self):
+        return f"[{self.domain}]: (FAC={self.faculty}, COURSE={self.course})"
+
+
+class IsApiClient:
+    def __init__(self, domain: str, token: str, course_code: str, faculty_id: int):
+        """Creates IS API client
+        Args:
+            domain(str): Is domain (ex. is.muni.cz)
+            token(str): Token for the Notes api
+            course_code(str): Course code
+            faculty_id(int): Id of the faculty
+        """
+        self._http = HttpClient(domain, token, course_code, faculty_id)
+        log.debug(f"[INIT] Created client {self.http}")
+
+    @property
+    def http(self) -> HttpClient:
+        """Gets instance of the HTTP Client
+        Returns(HttpClient): Http client instance
+        """
+        return self._http
+
+    @property
+    def url(self) -> str:
+        """Ges an url to the IS NOTES API
+
+        Returns(str): Full api url
+        """
+        return self.http.url
+
+    @property
+    def domain(self) -> str:
+        """Domain for the client
+
+        Returns(str): Domain
+        """
+        return self.http.domain
+
+    @property
+    def course(self) -> str:
+        """Course code name
+
+        Returns(str): Course code name
+        """
+        return self.http.course
+
+    @property
+    def faculty(self) -> int:
+        """Faculty ID
+        Returns(int): Faculty ID
+        """
+        return self.http.faculty
 
     def course_info(self) -> CourseInfo:
         """
@@ -110,7 +183,7 @@ class IsApiClient:
         Returns:
 
         """
-        response = self.operation(operation='predmet-info')
+        response = self.http.operation(operation='predmet-info')
         return CourseInfo(response)
 
     def course_list_students(self, registered: bool = False,
@@ -135,7 +208,7 @@ class IsApiClient:
         if inactive:
             params['vcneaktiv'] = 'a'
 
-        response = self.operation(operation='predmet-seznam', **params)
+        response = self.http.operation(operation='predmet-seznam', **params)
         return CourseStudents(response)
 
     def seminar_list(self, seminars: list, terminated: bool = False,
@@ -156,7 +229,7 @@ class IsApiClient:
         if inactive:
             params['vcneaktiv'] = 'a'
 
-        res = self.operation(operation='seminar-seznam', **params)
+        res = self.http.operation(operation='seminar-seznam', **params)
         return SeminarStudents(res)
 
     def notepad_content(self, shortcut: str, *ucos) -> NotepadContent:
@@ -167,14 +240,14 @@ class IsApiClient:
 
         Returns(Resource): Resource instance
         """
-        res = self.operation(operation='blok-dej-obsah', zkratka=shortcut, uco=ucos)
+        res = self.http.operation(operation='blok-dej-obsah', zkratka=shortcut, uco=ucos)
         return NotepadContent(res)
 
     def notepad_list(self) -> NotesInfo:
         """List of all notepads
         Returns(Resource): Gets instance of the reources
         """
-        res = self.operation(operation='bloky-seznam')
+        res = self.http.operation(operation='bloky-seznam')
         return NotesInfo(res)
 
     def notepad_new(self, name: str, shortcut: str,
@@ -200,7 +273,7 @@ class IsApiClient:
         params['nedoplnovat'] = 'a' if not complete else 'n'
         params['statistika'] = 'a' if statistic else 'n'
 
-        return self.operation(operation='blok-novy', **params)
+        return self.http.operation(operation='blok-novy', **params)
 
     def notepad_update(self, shortcut, uco, content,
                        last_change=None, override=True) -> dict:
@@ -224,7 +297,7 @@ class IsApiClient:
             params['poslzmeneno'] = last_change
         if override:
             params['prepis'] = 'a'
-        return self.operation(operation='blok-pis-student-obsah', **params)
+        return self.http.operation(operation='blok-pis-student-obsah', **params)
 
     def exams_list(self, terminated=False, inactive=False):
         """Gets a list of exams
@@ -239,29 +312,4 @@ class IsApiClient:
 
         if inactive:
             params['vcneaktiv'] = 'a'
-        return self.operation(operation='terminy-seznam', **params)
-
-    @property
-    def __main_params(self) -> dict:
-        """Token, faculty and course params
-        Returns(dict): Dictionary of the main params
-        """
-        return dict(
-            klic=self.__token,
-            fakulta=self.faculty,
-            kod=self.course
-        )
-
-    def __make_request(self, operation, **params) -> requests.Response:
-        """Creates request to the API
-        Args:
-            operation(str): Operation name
-            **params: Optional params for the operation
-        Returns(Response): Rest client response
-        """
-        url_params = {**params, **self.__main_params, "operace": operation}
-        serialized_params = params_serialize(url_params)
-        log.debug(f"[REQ] New Request: {self.url} : {serialized_params}")
-        response = requests.get(self.url, params=serialized_params)
-        log.debug(f"[RES] Response[{response.status_code}]: {response.content}")
-        return response
+        return self.http.operation(operation='terminy-seznam', **params)

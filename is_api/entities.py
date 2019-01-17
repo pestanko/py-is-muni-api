@@ -1,100 +1,116 @@
-from typing import List
+import logging
+from typing import List, Optional
+
+from lxml import etree
+
+log = logging.getLogger(__name__)
 
 
 class Resource(object):
-
-    def __init__(self, content):
+    def __init__(self, content: etree.Element, base_selector=""):
         self._content = content
+        self._base_selector = base_selector
 
     @property
-    def entity(self):
+    def root(self) -> etree.Element:
         return self._content
 
-    def __getitem__(self, item):
-        return self.entity[item]
+    def __getitem__(self, item) -> etree.Element:
+        selector = self._base_selector + item
+        log.debug(f"XPATH SELECTOR \"{selector}]\"")
+        result = self.root.xpath(selector)
+        log.debug(f"XPATH RESULT \"{selector}]\": {result}")
+        return result
 
-    def __setitem__(self, key, value):
-        self.entity[key] = value
+    def __call__(self, item: str) -> Optional[str]:
+        result = self[item + "/text()"]
+        if not result:
+            return None
+        result = "".join(result)
+        return result
+
+    def _collection(self, selector, klass) -> List:
+        result = []
+        for (index, _) in enumerate(self.root.xpath(selector)):
+            selector = f"{selector}[{index + 1}]/"
+            result.append(klass(self.root, base_selector=selector))
+        return result
 
 
 class ChangedSub(Resource):
     @property
     def person(self):
-        return self['ZMENIL']
+        return self('ZMENIL')
 
     @property
     def date(self):
-        return self['ZMENENO']
+        return self('ZMENENO')
 
 
 class Seminar(Resource):
     class StudentsSub(Resource):
         @property
         def max(self) -> int:
-            return int(self['MAX_STUDENTU'])
+            return int(self('MAX_STUDENTU'))
 
         @property
         def count(self) -> int:
-            return int(self['POCET_STUDENTU_VE_SKUPINE'])
+            return int(self('POCET_STUDENTU_VE_SKUPINE'))
 
     class DatesSub(Resource):
         @property
         def signin_from(self) -> str:
-            return self['PRIHLASIT_OD']
+            return self('PRIHLASIT_OD')
 
         @property
         def signin_to(self) -> str:
-            return self['PRIHLASIT_DO']
+            return self('PRIHLASIT_DO')
 
         @property
         def signout_to(self) -> str:
-            return self['ODHLASIT_DO']
+            return self('ODHLASIT_DO')
 
     @property
     def id(self) -> int:
-        return int(self['SEMINAR_ID'])
+        return int(self('SEMINAR_ID'))
 
     @property
     def label(self) -> str:
-        return self['OZNACENI']
+        return self('OZNACENI')
 
     @property
     def changed(self) -> 'ChangedSub':
-        return ChangedSub(self)
+        return ChangedSub(self.root, base_selector=self._base_selector)
 
     @property
     def dates(self) -> 'Seminar.DatesSub':
-        return Seminar.DatesSub(self)
+        return Seminar.DatesSub(self.root, base_selector=self._base_selector)
 
     @property
     def students(self) -> 'Seminar.StudentsSub':
-        return Seminar.StudentsSub(self)
-
-    @property
-    def entity(self) -> dict:
-        return self._content
+        return Seminar.StudentsSub(self.root, base_selector=self._base_selector)
 
     @property
     def note(self) -> str:
-        return self['POZNAMKA']
+        return self('POZNAMKA')
 
 
 class AbstractPerson(Resource):
     @property
     def first_name(self) -> str:
-        return self['JMENO']
+        return self('JMENO')
 
     @property
     def last_name(self) -> str:
-        return self['PRIJIMENI']
+        return self('PRIJIMENI')
 
     @property
     def full_name(self) -> str:
-        return self['CELE_JMENO']
+        return self('CELE_JMENO')
 
     @property
     def uco(self) -> int:
-        return self['UCO']
+        return self('UCO')
 
 
 class Teacher(AbstractPerson):
@@ -104,63 +120,67 @@ class Teacher(AbstractPerson):
 
     @property
     def role(self) -> str:
-        return self['ROLE']
+        return self('ROLE')
 
 
 class CourseInfo(Resource):
+    def __init__(self, content: etree.Element, base_selector="/PREDMET_INFO/"):
+        super().__init__(content, base_selector=base_selector)
+
     class CourseSub(Resource):
         @property
         def id(self):
-            return int(self['PREDMET_ID'])
+            return int(self('PREDMET_ID'))
 
         @property
         def name(self):
-            return self['NAZEV_PREDMETU']
+            return self('NAZEV_PREDMETU')
 
         @property
         def name_eng(self):
-            return self['NAZEV_PREDMETU_ANGL']
+            return self('NAZEV_PREDMETU_ANGL')
 
         @property
         def code(self):
-            return self['KOD_PREDMETU']
+            return self('KOD_PREDMETU')
 
         @property
         def number_of_students(self):
-            return int(self['POCET_ZAPSANYCH_STUDENTU'])
+            return int(self('POCET_ZAPSANYCH_STUDENTU'))
 
         @property
         def number_of_registered_students(self):
-            return int(self['POCET_ZAREG_STUDENTU'])
+            return int(self('POCET_ZAREG_STUDENTU'))
 
     class FacultySub(Resource):
         @property
         def id(self):
-            return int(self['FAKULTA_ID'])
+            return int(self('FAKULTA_ID'))
 
         @property
         def shortcut(self):
-            return self['FAKULTA_ZKRATKA_DOM']
-
-    @property
-    def entity(self):
-        return self._content['PREDMET_INFO']
+            return self('FAKULTA_ZKRATKA_DOM')
 
     @property
     def course(self):
-        return CourseInfo.CourseSub(self)
+        return CourseInfo.CourseSub(self.root, base_selector=self._base_selector)
 
     @property
     def faculty(self):
-        return CourseInfo.FacultySub(self)
+        return CourseInfo.FacultySub(self.root, base_selector=self._base_selector)
 
     @property
     def seminars(self) -> List[Seminar]:
-        return [Seminar(sem) for sem in self['SEMINARE'].values()]
+        result = []
+        partial_selector = self._base_selector + "SEMINARE/SEMINAR"
+        for (index, _) in enumerate(self.root.xpath(partial_selector)):
+            selector = f"{partial_selector}[{index + 1}]/"
+            result.append(Seminar(self.root, base_selector=selector))
+        return self._collection(selector="SEMINARE/SEMINAR", klass=Seminar)
 
     @property
     def teachers(self) -> List[Teacher]:
-        return [Teacher(teach) for teach in self['VYUCUJICI_SEZNAM'].values()]
+        return self._collection(selector="VYUCUJICI_SEZNAM/VYUCUJICI", klass=Teacher)
 
 
 class NotepadContent(Resource):
@@ -171,11 +191,11 @@ class NotepadContent(Resource):
 
         @property
         def content(self) -> str:
-            return self['OBSAH']
+            return self('OBSAH')
 
         @property
-        def uco(self) -> int:
-            return self['UCO']
+        def uco(self) -> str:
+            return self('UCO')
 
         @property
         def changed(self) -> ChangedSub:
@@ -183,7 +203,7 @@ class NotepadContent(Resource):
 
     @property
     def entity(self) -> dict:
-        return self._content['BLOKY_OBSAH']
+        return self._content('BLOKY_OBSAH')
 
     @property
     def students(self) -> list:
@@ -193,19 +213,19 @@ class NotepadContent(Resource):
 class StudentSub(AbstractPerson):
     @property
     def entity(self):
-        return self._content['STUDENT']
+        return self._content('STUDENT')
 
     @property
     def study_status(self):
-        return self['STAV_STUDIA']
+        return self('STAV_STUDIA')
 
     @property
     def registration_status(self):
-        return self['STAV_ZAPISU']
+        return self('STAV_ZAPISU')
 
     @property
     def course_elimination(self):
-        return self['UKONCENI']
+        return self('UKONCENI')
 
     @property
     def has_seminary(self) -> bool:
@@ -213,21 +233,12 @@ class StudentSub(AbstractPerson):
 
 
 class CourseStudents(Resource):
-
-    @property
-    def entity(self):
-        return self._content['PREDMET_STUDENTI_INFO']
-
     @property
     def students(self):
         return [StudentSub(stud) for stud in self.entity]
 
 
 class SeminarStudents(Resource):
-    @property
-    def entity(self):
-        return self._content['SEMINAR_STUDENTI_INFO']
-
     @property
     def students(self):
         return [StudentSub(stud) for stud in self.entity]

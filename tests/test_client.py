@@ -23,13 +23,13 @@ def test_course_info(stub_params, is_stub):
     assert response.course.name == "Programování v jazyce C++"
     assert response.course.name_eng == "C++ Programming"
     assert response.course.code == 'PB161'
-    assert response.course.number_of_registered_students == 180
-    assert response.course.number_of_students == 174
-    assert response.course.id == 869944
+    assert response.course.number_of_registered_students == 120
+    assert response.course.number_of_students == 110
+    assert response.course.id == 123456
     assert len(response.seminars) == 1
     seminars = response.seminars
     seminar = seminars[0]
-    assert seminar.id == 365290
+    assert seminar.id == 12364
     assert seminar.label == '01'
     assert seminar.students.count == 15
     assert seminar.students.max == 15
