@@ -240,7 +240,10 @@ class IsApiClient:
 
         Returns(Resource): Resource instance
         """
-        res = self.http.operation(operation='blok-dej-obsah', zkratka=shortcut, uco=ucos)
+        params = dict(zkratka=shortcut, operation='blok-dej-obsah')
+        if ucos:
+            params['uco'] = ucos
+        res = self.http.operation(**params)
         return NotepadContent(res)
 
     def notepad_list(self) -> NotesInfo:
