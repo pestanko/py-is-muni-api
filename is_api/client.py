@@ -3,7 +3,7 @@ import logging
 import requests
 from lxml import etree
 
-from is_api.entities import CourseInfo, CourseStudents, NotepadContent, NotesInfo, SeminarStudents
+from is_api import entities, errors
 
 log = logging.getLogger(__name__)
 
@@ -40,18 +40,20 @@ def serialize(response: requests.Response) -> etree.Element:
 
 
 class HttpClient:
-    def __init__(self, domain: str, token: str, course_code: str, faculty_id: int):
+    def __init__(self, domain: str, token: str, course_code: str, faculty_id: int, fail=True):
         """Creates HTTP Client wrapper
         Args:
             domain(str): Is domain (ex. is.muni.cz)
             token(str): Token for the Notes api
             course_code(str): Course code
             faculty_id(int): Id of the faculty
+            fail(bool): Throw an exception if the request has not been successful
         """
         self.__domain = domain
         self.__token = token
         self.__course = course_code
         self.__faculty_id = faculty_id
+        self.__fail = fail
 
     @property
     def url(self) -> str:
@@ -109,7 +111,14 @@ class HttpClient:
         serialized_params = params_serialize(url_params)
         log.debug(f"[REQ] New Request: {self.url} : {serialized_params}")
         response = requests.get(self.url, params=serialized_params)
-        log.debug(f"[RES] Response[{response.status_code}]: {response.content}")
+        if response.ok:
+            log.debug(f"[RES] Response[{response.status_code}]: {response.content}")
+        else:
+            content = response.content
+            log.error(f"[RES] Response[{response.status_code}]: {content} - "
+                      f"\"{content.decode('utf-8')}\"")
+            if self.__fail:
+                raise errors.ISApiError(message=content.decode('utf-8'))
         return response
 
     @property
@@ -177,17 +186,17 @@ class IsApiClient:
         """
         return self.http.faculty
 
-    def course_info(self) -> CourseInfo:
+    def course_info(self) -> entities.CourseInfo:
         """
         URL: https://is.muni.cz/auth/napoveda/technicka/bloky_api?fakulta=1433;obdobi=7024;predmet=990599#predmet-info
         Returns:
 
         """
-        response = self.http.operation(operation='predmet-info')
-        return CourseInfo(response)
+        log.debug(f"[READ] Course info")
+        return self._create_resource('predmet-info', {}, klass=entities.CourseInfo)
 
-    def course_list_students(self, registered: bool = False,
-                             terminated: bool = False, inactive: bool = False) -> CourseStudents:
+    def course_list_students(self, registered: bool = False, terminated: bool = False,
+                             inactive: bool = False) -> entities.CourseStudents:
         """List all of the students in the course
 
         Args:
@@ -207,12 +216,12 @@ class IsApiClient:
 
         if inactive:
             params['vcneaktiv'] = 'a'
+        log.debug(f"[LIST] Get list of students in the course with params: {params}")
+        return self._create_resource('predmet-seznam', params,
+                                     klass=entities.CourseStudents)
 
-        response = self.http.operation(operation='predmet-seznam', **params)
-        return CourseStudents(response)
-
-    def seminar_list(self, seminars: list, terminated: bool = False,
-                     inactive: bool = False) -> SeminarStudents:
+    def seminar_list_students(self, seminars: list, terminated: bool = False,
+                              inactive: bool = False) -> entities.SeminarStudents:
         """List students in the seminars
 
         Args:
@@ -229,10 +238,24 @@ class IsApiClient:
         if inactive:
             params['vcneaktiv'] = 'a'
 
-        res = self.http.operation(operation='seminar-seznam', **params)
-        return SeminarStudents(res)
+        log.debug(f"[LIST] Get list of students in the course's seminaries with params: {params}")
+        return self._create_resource('seminar-seznam', params,
+                                     klass=entities.SeminarStudents)
 
-    def notepad_content(self, shortcut: str, *ucos) -> NotepadContent:
+    def seminar_list_teachers(self, seminars: list) -> entities.SeminarTeachers:
+        """List teachers in the seminars
+
+        Args:
+            seminars(list[str]): List of seminars
+
+        Returns(Resource): Resource instance
+        """
+        params = {'seminar': seminars}
+        log.debug(f"[LIST] Get list of teachers in the course's seminaries with params: {params}")
+        return self._create_resource('seminar-cvicici-seznam', params,
+                                     klass=entities.SeminarTeachers)
+
+    def notepad_content(self, shortcut: str, *ucos) -> entities.NotepadContent:
         """Gets notepad content
         Args:
             shortcut(str): Shortcut name of the notepad
@@ -240,22 +263,22 @@ class IsApiClient:
 
         Returns(Resource): Resource instance
         """
-        params = dict(zkratka=shortcut, operation='blok-dej-obsah')
+        params = dict(zkratka=shortcut)
         if ucos:
             params['uco'] = ucos
-        res = self.http.operation(**params)
-        return NotepadContent(res)
+        log.debug(f"[READ] Get notepad content with params: {params}")
+        return self._create_resource('blok-dej-obsah', params, klass=entities.NotepadContent)
 
-    def notepad_list(self) -> NotesInfo:
+    def notepad_list(self) -> entities.NotesList:
         """List of all notepads
-        Returns(Resource): Gets instance of the reources
+        Returns(Resource): Gets instance of the resources
         """
-        res = self.http.operation(operation='bloky-seznam')
-        return NotesInfo(res)
+        log.debug(f"[LIST] Get notepads list.")
+        return self._create_resource('bloky-seznam', {}, klass=entities.NotesList)
 
     def notepad_new(self, name: str, shortcut: str,
                     visible: bool = False, complete: bool = True,
-                    statistic: bool = False) -> dict:
+                    statistic: bool = False) -> entities.Resource:
         """Creates a new notepad
         Args:
             name(str): Name of the notepad
@@ -264,7 +287,7 @@ class IsApiClient:
             complete(bool):
             statistic(bool): Should the statistic be generated
 
-        Returns(dict):
+        Returns(entities.Resource):
 
         """
         params = dict(
@@ -276,10 +299,11 @@ class IsApiClient:
         params['nedoplnovat'] = 'a' if not complete else 'n'
         params['statistika'] = 'a' if statistic else 'n'
 
-        return self.http.operation(operation='blok-novy', **params)
+        log.info(f"[NOTES] Create notepad with params: {params} ")
+        return self._create_resource('blok-novy', params)
 
     def notepad_update(self, shortcut, uco, content,
-                       last_change=None, override=True) -> dict:
+                       last_change=None, override=True) -> entities.Resource:
         """Updates notepad content
         Args:
             shortcut(str): Notepad shortcut identification
@@ -288,8 +312,7 @@ class IsApiClient:
             last_change(str): Format: YYYYMMDDHH24MISS
             override(true): Overrides the content
 
-        Returns:
-
+        Returns(etree.Element): Parsed XML response
         """
         params = dict(
             zkratka=shortcut,
@@ -300,7 +323,9 @@ class IsApiClient:
             params['poslzmeneno'] = last_change
         if override:
             params['prepis'] = 'a'
-        return self.http.operation(operation='blok-pis-student-obsah', **params)
+
+        log.info(f"[NOTES] Update notepad with params: {params} ")
+        return self._create_resource('blok-pis-student-obsah', params)
 
     def exams_list(self, terminated=False, inactive=False):
         """Gets a list of exams
@@ -315,4 +340,9 @@ class IsApiClient:
 
         if inactive:
             params['vcneaktiv'] = 'a'
-        return self.http.operation(operation='terminy-seznam', **params)
+        return self._create_resource('terminy-seznam', params)
+
+    def _create_resource(self, operation, params=None, klass=entities.Resource):
+        params = params or {}
+        resp = self.http.operation(operation=operation, **params)
+        return klass(resp)

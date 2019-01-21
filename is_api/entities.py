@@ -17,9 +17,9 @@ class Resource:
 
     def __getitem__(self, item) -> etree.Element:
         selector = self._base_selector + item
-        log.debug(f"XPATH SELECTOR \"{selector}]\"")
+        log.trace(f"XPATH SELECTOR \"{selector}]\"")
         result = self.root.xpath(selector)
-        log.debug(f"XPATH RESULT \"{selector}]\": {result}")
+        log.trace(f"XPATH RESULT \"{selector}]\": {result}")
         return result
 
     def __call__(self, item: str, default=None) -> Optional[str]:
@@ -31,9 +31,10 @@ class Resource:
 
     def _collection(self, selector, klass) -> List:
         result = []
+        selector = f"{self._base_selector}{selector}"
         for (index, _) in enumerate(self.root.xpath(selector)):
-            selector = f"{selector}[{index + 1}]/"
-            cls_instance = self._klass_init(klass=klass, selector=selector)
+            selector_inner = f"{selector}[{index + 1}]/"
+            cls_instance = self._klass_init(klass=klass, selector=selector_inner)
             result.append(cls_instance)
         return result
 
@@ -44,8 +45,8 @@ class Resource:
 
 class ChangedSub(Resource):
     @property
-    def person(self) -> str:
-        return self('ZMENIL')
+    def person(self) -> int:
+        return int(self('ZMENIL'))
 
     @property
     def date(self) -> str:
@@ -224,51 +225,89 @@ class StudentSub(AbstractPerson):
 
 
 class CourseStudents(Resource):
+    def __init__(self, content: etree.Element, base_selector="/PREDMET_STUDENTI_INFO/"):
+        super().__init__(content, base_selector=base_selector)
+
     @property
     def students(self) -> List[StudentSub]:
         return self._collection('STUDENT', StudentSub)
 
 
-class SeminarStudents(Resource):
+class SeminarShared(Resource):
     @property
-    def students(self):
-        return self._collection('STUDENT', StudentSub)
+    def name(self) -> str:
+        return self('OZNACENI')
+
+    @property
+    def id(self) -> int:
+        return int(self('SEMINAR_ID'))
+
+
+class SeminarTeachers(Resource):
+    def __init__(self, content: etree.Element, base_selector="/SEMINAR_CVICICI_INFO/"):
+        super().__init__(content, base_selector=base_selector)
+
+    @property
+    def seminars(self) -> List['SeminarTeachers.SeminarSub']:
+        return self._collection('SEMINAR', SeminarTeachers.SeminarSub)
+
+    class SeminarSub(SeminarShared):
+        @property
+        def teachers(self) -> List['StudentSub']:
+            return self._collection('CVICICI', Teacher)
+
+
+class SeminarStudents(Resource):
+    def __init__(self, content: etree.Element, base_selector="/SEMINAR_STUDENTI_INFO/"):
+        super().__init__(content, base_selector=base_selector)
+
+    @property
+    def seminars(self) -> List['SeminarStudents.SeminarSub']:
+        return self._collection('SEMINAR', SeminarStudents.SeminarSub)
+
+    class SeminarSub(SeminarShared):
+        @property
+        def students(self) -> List['StudentSub']:
+            return self._collection('STUDENT', StudentSub)
 
 
 class NoteInfo(Resource):
     @property
-    def id(self):
-        return self['BLOK_ID']
+    def id(self) -> int:
+        return int(self('BLOK_ID'))
 
     @property
-    def name(self):
-        return self['JMENO']
+    def name(self) -> str:
+        return self('JMENO')
 
     @property
-    def show_statistic(self):
-        return self['STUDENTOVI_ZOBRAZIT_STATISTIKU']
+    def show_statistic(self) -> bool:
+        return self('STUDENTOVI_ZOBRAZIT_STATISTIKU') == 'a'
 
     @property
-    def type_id(self):
-        return self['TYP_ID']
+    def type_id(self) -> str:
+        return self('TYP_ID')
 
     @property
-    def type_name(self):
-        return self['TYP_NAZEV']
+    def type_name(self) -> str:
+        return self('TYP_NAZEV')
 
     @property
-    def shortcut(self):
-        return self['ZKRATKA']
+    def shortcut(self) -> str:
+        return self('ZKRATKA')
 
     @property
     def changed(self) -> ChangedSub:
         return self._klass_init(ChangedSub)
 
 
-class NotesInfo(Resource):
+class NotesList(Resource):
+    def __init__(self, content: etree.Element, base_selector="/POZN_BLOKY_INFO/"):
+        super().__init__(content, base_selector=base_selector)
+
     @property
-    def notes(self):
-        return self._collection('BLOKY_INFO', NoteInfo)
+    def notes(self) -> List[NoteInfo]:
+        return self._collection('POZN_BLOK', NoteInfo)
 
 
 class Exams(Resource):

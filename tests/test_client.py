@@ -74,3 +74,83 @@ def test_course_list_students(stub_params, is_stub):
     assert student1.study_status == 'aktivní'
     assert student1.registration_status == 'zapsáno'
     assert not student1.has_seminary
+
+
+@responses.activate
+def test_seminary_list_students(stub_params, is_stub):
+    url = utils.gen_url(stub_params, ";operace=seminar-seznam;seminar=01;seminar=02")
+    _add_url_rule(url, body=sample.SEMINARY_LIST_STUDENTS)
+    response: entities.SeminarStudents = is_stub.seminar_list_students(seminars=['01', '02'])
+
+    assert len(response.seminars) == 2
+    seminar1 = response.seminars[0]
+    assert seminar1.id == 11111111111
+    assert seminar1.name == '01'
+    assert len(seminar1.students) == 1
+    student = seminar1.students[0]
+    assert student.uco == 4445557777
+    assert student.course_termination == 'z'
+    assert student.full_name == 'What ever'
+    assert student.first_name == 'What'
+    assert student.last_name == 'Ever'
+
+
+@responses.activate
+def test_seminary_list_teachers(stub_params, is_stub):
+    url = utils.gen_url(stub_params, ";operace=seminar-cvicici-seznam;seminar=01;seminar=02")
+    _add_url_rule(url, body=sample.SEMINARY_LIST_TEACHERS)
+    response: entities.SeminarTeachers = is_stub.seminar_list_teachers(seminars=['01', '02'])
+    assert len(response.seminars) == 2
+    seminar1 = response.seminars[0]
+    assert seminar1.id == 123456
+    assert seminar1.name == '01'
+    assert len(seminar1.teachers) == 1
+    teacher = seminar1.teachers[0]
+    assert teacher.uco == 4445557777
+    assert teacher.full_name == 'RNDr. Mgr. What ever'
+    assert teacher.first_name == 'What'
+    assert teacher.last_name == 'Ever'
+
+
+@responses.activate
+def test_list_notes(stub_params, is_stub):
+    url = utils.gen_url(stub_params, ";operace=bloky-seznam;")
+    _add_url_rule(url, body=sample.NOTES_LIST)
+    response: entities.NotesList = is_stub.notepad_list()
+    assert len(response.notes) == 1
+    note = response.notes[0]
+    assert note.id == 5545421544412
+    assert note.name == 'Test X'
+    assert note.show_statistic
+    assert note.shortcut == 'tst_x'
+    assert note.changed.person == 456698545255
+    assert note.changed.date == '20160112115151'
+    assert note.type_id == '1'
+    assert note.type_name == 'obecný blok'
+
+
+@responses.activate
+def test_new_notepad(stub_params, is_stub):
+    url = utils.gen_url(stub_params, ";operace=blok-novy;jmeno=Nový poznámkový blok;zkratka=blok4;"
+                                     "statistika=n;nahlizi=n;nedoplnovat=n")
+    _add_url_rule(url, body="<BLOK_NOVY>Úspěšně uloženo.</BLOK_NOVY>")
+    response: entities.Resource = is_stub.notepad_new(shortcut='blok4',
+                                                      name='Nový poznámkový blok',
+                                                      statistic=False)
+
+    assert response is not None
+    assert response('/BLOK_NOVY') == "Úspěšně uloženo."
+
+
+@responses.activate
+def test_add_content_to_notepad(stub_params, is_stub):
+    content = "Foo points *2"
+    url = utils.gen_url(stub_params, f";operace=blok-pis-student-obsah;zkratka=blok4;"
+                                     f"uco=123456;obsah={content};prepis=a")
+    _add_url_rule(url, body="<ZAPIS>Úspěšně uloženo.</ZAPIS>")
+    response: entities.Resource = is_stub.notepad_update(shortcut='blok4',
+                                                         uco='123456',
+                                                         content=content)
+
+    assert response is not None
+    assert response('/ZAPIS') == "Úspěšně uloženo."
