@@ -12,15 +12,3 @@ class ISApiError(Exception):
 
     def __str__(self) -> str:
         return self.what()
-
-
-class BadParamsError(ISApiError):
-    pass
-
-
-class InvalidAccessError(ISApiError):
-    pass
-
-
-class PermissionDeniedError(ISApiError):
-    pass
