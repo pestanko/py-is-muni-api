@@ -1,7 +1,5 @@
 from setuptools import find_packages, setup
 
-from is_api.version import IS_MUNI_VERSION
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -18,7 +16,7 @@ extra_requirements = {
 }
 
 setup(name='muni_is_api',
-      version=IS_MUNI_VERSION,
+      version='0.1',
       description='IS MUNI API Client',
       author='Peter Stanko',
       author_email='stanko@mail.muni.cz',
