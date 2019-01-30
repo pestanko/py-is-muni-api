@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-requirements = ['requests', 'lxml']
+requirements = ['requests', 'lxml', 'coloredlogs']
 
 extra_requirements = {
     'dev': [
