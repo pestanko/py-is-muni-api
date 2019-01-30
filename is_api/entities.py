@@ -14,6 +14,11 @@ class Resource:
     @property
     def root(self) -> etree.Element:
         return self._content
+    
+    @property
+    def xml(self) -> str:
+        string = etree.tostring(self.root, encoding='utf-8', pretty_print=True)
+        return string.decode('utf-8')
 
     def __getitem__(self, item) -> etree.Element:
         selector = self._base_selector + item
@@ -41,6 +46,9 @@ class Resource:
     def _klass_init(self, klass, selector=None):
         selector = selector or self._base_selector
         return klass(self.root, base_selector=selector)
+
+    def __str__(self) -> str:
+        return self.xml
 
 
 class ChangedSub(Resource):
