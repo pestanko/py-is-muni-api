@@ -8,12 +8,14 @@ requests = "*"
 xmltodict = "*"
 coloredlogs = "*"
 lxml = "*"
+defusedxml = "*"
 
 [dev-packages]
 pytest = "*"
 coverage = "*"
 mock = "*"
 responses = "*"
+bandit = "*"
 
 [requires]
 python_version = "3.6"

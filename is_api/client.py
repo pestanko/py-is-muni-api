@@ -1,7 +1,7 @@
 import logging
 
 import requests
-from lxml import etree
+from defusedxml.lxml import fromstring, RestrictedElement
 
 from is_api import entities, errors
 
@@ -30,13 +30,13 @@ def params_serialize(params: dict) -> str:
     return builder
 
 
-def serialize(response: requests.Response) -> etree.Element:
+def serialize(response: requests.Response) -> RestrictedElement:
     """Serialize xml response to the dict
     Args:
         response(requests.Response): XML response
     Returns(dict): Serialized dictionary
     """
-    return etree.fromstring(response.content)
+    return fromstring(response.content)
 
 
 class HttpClient:
@@ -86,7 +86,7 @@ class HttpClient:
         """
         return self.__faculty_id
 
-    def operation(self, operation, **params) -> etree.Element:
+    def operation(self, operation, **params) -> RestrictedElement:
         """Invokes operation of the API
         Args:
             operation(str): Name of the operation

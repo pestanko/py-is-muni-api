@@ -1,26 +1,26 @@
 import logging
 from typing import List, Optional
 
-from lxml import etree
+from defusedxml.lxml import tostring, RestrictedElement
 
 log = logging.getLogger(__name__)
 
 
 class Resource:
-    def __init__(self, content: etree.Element, base_selector=""):
+    def __init__(self, content: RestrictedElement, base_selector=""):
         self._content = content
         self._base_selector = base_selector
 
     @property
-    def root(self) -> etree.Element:
+    def root(self) -> RestrictedElement:
         return self._content
     
     @property
     def xml(self) -> str:
-        string = etree.tostring(self.root, encoding='utf-8', pretty_print=True)
+        string = tostring(self.root, encoding='utf-8', pretty_print=True)
         return string.decode('utf-8')
 
-    def __getitem__(self, item) -> etree.Element:
+    def __getitem__(self, item) -> RestrictedElement:
         selector = self._base_selector + item
         log.trace(f"XPATH SELECTOR \"{selector}]\"")
         result = self.root.xpath(selector)
@@ -134,7 +134,7 @@ class Teacher(AbstractPerson):
 
 
 class CourseInfo(Resource):
-    def __init__(self, content: etree.Element, base_selector="/PREDMET_INFO/"):
+    def __init__(self, content: RestrictedElement, base_selector="/PREDMET_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     class CourseSub(Resource):
@@ -189,7 +189,7 @@ class CourseInfo(Resource):
 
 
 class NotepadContent(Resource):
-    def __init__(self, content: etree.Element, base_selector="/BLOKY_OBSAH/"):
+    def __init__(self, content: RestrictedElement, base_selector="/BLOKY_OBSAH/"):
         super().__init__(content, base_selector=base_selector)
 
     class StudentSub(Resource):
@@ -212,10 +212,6 @@ class NotepadContent(Resource):
 
 class StudentSub(AbstractPerson):
     @property
-    def entity(self):
-        return self._content('STUDENT')
-
-    @property
     def study_status(self):
         return self('STAV_STUDIA')
 
@@ -233,7 +229,7 @@ class StudentSub(AbstractPerson):
 
 
 class CourseStudents(Resource):
-    def __init__(self, content: etree.Element, base_selector="/PREDMET_STUDENTI_INFO/"):
+    def __init__(self, content: RestrictedElement, base_selector="/PREDMET_STUDENTI_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
@@ -252,7 +248,7 @@ class SeminarShared(Resource):
 
 
 class SeminarTeachers(Resource):
-    def __init__(self, content: etree.Element, base_selector="/SEMINAR_CVICICI_INFO/"):
+    def __init__(self, content: RestrictedElement, base_selector="/SEMINAR_CVICICI_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
@@ -266,7 +262,7 @@ class SeminarTeachers(Resource):
 
 
 class SeminarStudents(Resource):
-    def __init__(self, content: etree.Element, base_selector="/SEMINAR_STUDENTI_INFO/"):
+    def __init__(self, content: RestrictedElement, base_selector="/SEMINAR_STUDENTI_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
@@ -310,7 +306,7 @@ class NoteInfo(Resource):
 
 
 class NotesList(Resource):
-    def __init__(self, content: etree.Element, base_selector="/POZN_BLOKY_INFO/"):
+    def __init__(self, content: RestrictedElement, base_selector="/POZN_BLOKY_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
