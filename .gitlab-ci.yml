@@ -28,6 +28,7 @@ build:
 
 sast:
   image: docker:stable
+  stage: sast
   tags:
     - shared-fi
   variables:
