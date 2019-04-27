@@ -1,7 +1,13 @@
+import re
+from pathlib import Path
+
 from setuptools import find_packages, setup
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+long_description = Path('README.md').read_text(encoding='utf-8')
+
+VERSION = re.search(r'__version__ = \'(.*?)\'',
+                    Path('is_api/__init__.py').read_text(encoding='utf-8')
+                    ).group(1)
 
 requirements = ['requests', 'lxml', 'coloredlogs', 'defusedxml']
 
@@ -16,7 +22,7 @@ extra_requirements = {
 }
 
 setup(name='muni_is_api',
-      version='0.1',
+      version=VERSION,
       description='IS MUNI API Client',
       author='Peter Stanko',
       author_email='stanko@mail.muni.cz',
