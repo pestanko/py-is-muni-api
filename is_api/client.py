@@ -1,7 +1,7 @@
 import logging
 
 import requests
-from defusedxml.lxml import fromstring, RestrictedElement
+from defusedxml.lxml import RestrictedElement, fromstring
 
 from is_api import entities, errors
 
@@ -20,11 +20,14 @@ def params_serialize(params: dict) -> str:
     Returns(str): path url
 
     """
+
+    def _iter(name, col):
+        return ";".join([f"{name}={value}" for value in col])
+
     builder = ""
     for (key, val) in params.items():
-        if isinstance(val, list):
-            for v in val:
-                builder += f"{key}={v};"
+        if isinstance(val, list) or isinstance(val, tuple):
+            builder += _iter(key, val) + ";"
         else:
             builder += f"{key}={val};"
     return builder
