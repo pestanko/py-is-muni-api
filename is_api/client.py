@@ -5,141 +5,13 @@ from defusedxml.lxml import RestrictedElement, fromstring
 
 from typing import List, Dict
 
-from is_api import entities, errors
+from is_api import entities, errors, utils
 
 log = logging.getLogger(__name__)
 
 """
 URL: https://is.muni.cz/auth/napoveda/technicka/bloky_api?fakulta=1433;obdobi=7024;predmet=990599
 """
-
-
-def params_serialize(params: Dict) -> str:
-    """Serializes params to an url
-    Args:
-        params(Dict): dictionary of params
-
-    Returns(str): path url
-
-    """
-
-    def _iter(name, col):
-        return ";".join([f"{name}={value}" for value in col])
-
-    builder = ""
-    for (key, val) in params.items():
-        if isinstance(val, list) or isinstance(val, tuple):
-            builder += _iter(key, val) + ";"
-        else:
-            builder += f"{key}={val};"
-    return builder
-
-
-def serialize(response: requests.Response) -> RestrictedElement:
-    """Serialize xml response to the dict
-    Args:
-        response(requests.Response): XML response
-    Returns(Dict): Serialized dictionary
-    """
-    return fromstring(response.content)
-
-
-class HttpClient:
-    def __init__(self, domain: str, token: str, course_code: str, 
-                        faculty_id: int, fail: bool=True):
-        """Creates HTTP Client wrapper
-        Args:
-            domain(str): Is domain (ex. is.muni.cz)
-            token(str): Token for the Notes api
-            course_code(str): Course code
-            faculty_id(int): Id of the faculty
-            fail(bool): Throw an exception if the request has not been successful
-        """
-        self.__domain = domain
-        self.__token = token
-        self.__course = course_code
-        self.__faculty_id = faculty_id
-        self.__fail = fail
-
-    @property
-    def url(self) -> str:
-        """Ges an url to the IS NOTES API
-
-        Returns(str): Full url
-        """
-        return f"https://{self.domain}/export/pb_blok_api"
-
-    @property
-    def domain(self) -> str:
-        """Domain for the client
-
-        Returns(str): Domain
-        """
-        return self.__domain
-
-    @property
-    def course(self) -> str:
-        """Course code name
-
-        Returns(str): Course code name
-        """
-        return self.__course
-
-    @property
-    def faculty(self) -> int:
-        """Faculty ID
-        Returns(int): Faculty ID
-        """
-        return self.__faculty_id
-
-    def operation(self, operation, **params) -> RestrictedElement:
-        """Invokes operation of the API
-        Args:
-            operation(str): Name of the operation
-            **params: Optional params for the operation
-
-        Returns: Resource instance
-
-        """
-        response = self.__make_request(operation=operation, **params)
-        resource = serialize(response=response)
-        log.debug(f"[SERIAL] Serialized response: {resource}")
-        return resource
-
-    def __make_request(self, operation, **params) -> requests.Response:
-        """Creates request to the API
-        Args:
-            operation(str): Operation name
-            **params: Optional params for the operation
-        Returns(Response): Rest client response
-        """
-        url_params = {**params, **self.__main_params, "operace": operation}
-        serialized_params = params_serialize(url_params)
-        log.debug(f"[REQ] New Request: {self.url} : {serialized_params}")
-        response = requests.get(self.url, params=serialized_params)
-        if response.ok:
-            log.debug(f"[RES] Response[{response.status_code}]: {response.content}")
-        else:
-            content = response.content
-            log.error(f"[RES] Response[{response.status_code}]: {content} - "
-                      f"\"{content.decode('utf-8')}\"")
-            if self.__fail:
-                raise errors.ISApiError(message=content.decode('utf-8'))
-        return response
-
-    @property
-    def __main_params(self) -> dict:
-        """Token, faculty and course params
-        Returns(dict): Dictionary of the main params
-        """
-        return dict(
-            klic=self.__token,
-            fakulta=self.faculty,
-            kod=self.course
-        )
-
-    def __str__(self):
-        return f"[{self.domain}]: (FAC={self.faculty}, COURSE={self.course})"
 
 
 class IsApiClient:
@@ -155,7 +27,7 @@ class IsApiClient:
         log.debug(f"[INIT] Created client {self.http}")
 
     @property
-    def http(self) -> HttpClient:
+    def http(self) -> 'HttpClient':
         """Gets instance of the HTTP Client
         Returns(HttpClient): Http client instance
         """
@@ -167,7 +39,7 @@ class IsApiClient:
 
         Returns(str): Full api url
         """
-        return self.http.url
+        return self.http.api_url
 
     @property
     def domain(self) -> str:
@@ -349,3 +221,88 @@ class IsApiClient:
         params = params or {}
         resp = self.http.operation(operation=operation, **params)
         return cls(resp)
+
+
+
+class HttpClient:
+    __slots__ = ('_session', '__fail', '__faculty_id', 
+                 '__course', '__token', '__domain')
+
+    def __init__(self, domain: str, token: str, course_code: str, 
+                        faculty_id: int, fail: bool=True):
+        """Creates HTTP Client wrapper
+        Args:
+            domain(str): Is domain (ex. is.muni.cz)
+            token(str): Token for the Notes api
+            course_code(str): Course code
+            faculty_id(int): Id of the faculty
+            fail(bool): Throw an exception if the request has not been successful
+        """
+        self.__domain = domain
+        self.__token = token
+        self.__course = course_code
+        self.__faculty_id = faculty_id
+        self.__fail = fail
+        self._session = None
+    
+    @property
+    def session(self) -> requests.Session:
+        if self._session is None:
+            self._session = requests.Session()
+        return self._session
+
+    @property
+    def api_url(self) -> str:
+        """Ges an url to the IS NOTES API
+
+        Returns(str): Full url
+        """
+        return f"https://{self.domain}/export/pb_blok_api"
+
+    @property
+    def domain(self) -> str:
+        """Domain for the client
+
+        Returns(str): Domain
+        """
+        return self.__domain
+
+    @property
+    def course(self) -> str:
+        """Course code name
+
+        Returns(str): Course code name
+        """
+        return self.__course
+
+    @property
+    def faculty(self) -> int:
+        """Faculty ID
+        Returns(int): Faculty ID
+        """
+        return self.__faculty_id
+
+    def operation(self, operation, **params) -> RestrictedElement:
+        """Invokes operation of the API
+        Args:
+            operation(str): Name of the operation
+            **params: Optional params for the operation
+
+        Returns: Resource instance
+
+        """
+        
+        prepared = dict(klic=self.__token, fakulta=self.faculty, kod=self.course)
+        response = utils.make_get_request(
+            session=self.session,
+            url=self.api_url,
+            params={**params, **prepared, "operace": operation},
+            fail=self.__fail
+        )
+
+        resource = utils.serialize(response=response)
+        log.debug(f"[SERIAL] Serialized response: {resource}")
+        return resource
+       
+    def __str__(self):
+        return f"[{self.domain}]: (FAC={self.faculty}, COURSE={self.course})"

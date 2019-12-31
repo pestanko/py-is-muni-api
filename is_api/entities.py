@@ -35,21 +35,24 @@ class Resource:
         result = "".join(result)
         return result
 
-    def _collection(self, selector, klass) -> List:
+    def _collection(self, selector: str, cls: type) -> List:
         result = []
         selector = f"{self._base_selector}{selector}"
         for (index, _) in enumerate(self.root.xpath(selector)):
             selector_inner = f"{selector}[{index + 1}]/"
-            cls_instance = self._klass_init(klass=klass, selector=selector_inner)
+            cls_instance = self._cls_init(cls=cls, selector=selector_inner)
             result.append(cls_instance)
         return result
 
-    def _klass_init(self, klass, selector=None):
+    def _cls_init(self, cls: type, selector=None):
         selector = selector or self._base_selector
-        return klass(self.root, base_selector=selector)
+        return cls(self.root, base_selector=selector)
 
     def __str__(self) -> str:
         return self.xml
+    
+    def _i(self, item: str, default=None) -> Optional[int]:
+        return int(self(item, default=default))
 
 
 class ChangedSub(Resource):
@@ -95,15 +98,15 @@ class Seminar(Resource):
 
     @property
     def changed(self) -> 'ChangedSub':
-        return self._klass_init(ChangedSub)
+        return self._cls_init(ChangedSub)
 
     @property
     def dates(self) -> 'Seminar.DatesSub':
-        return self._klass_init(Seminar.DatesSub)
+        return self._cls_init(Seminar.DatesSub)
 
     @property
     def students(self) -> 'Seminar.StudentsSub':
-        return self._klass_init(Seminar.StudentsSub)
+        return self._cls_init(Seminar.StudentsSub)
 
     @property
     def note(self) -> str:
@@ -174,19 +177,19 @@ class CourseInfo(Resource):
 
     @property
     def course(self) -> 'CourseInfo.CourseSub':
-        return self._klass_init(CourseInfo.CourseSub)
+        return self._cls_init(CourseInfo.CourseSub)
 
     @property
     def faculty(self) -> 'CourseInfo.FacultySub':
-        return self._klass_init(CourseInfo.FacultySub)
+        return self._cls_init(CourseInfo.FacultySub)
 
     @property
     def seminars(self) -> List[Seminar]:
-        return self._collection(selector="SEMINARE/SEMINAR", klass=Seminar)
+        return self._collection(selector="SEMINARE/SEMINAR", cls=Seminar)
 
     @property
     def teachers(self) -> List[Teacher]:
-        return self._collection(selector="VYUCUJICI_SEZNAM/VYUCUJICI", klass=Teacher)
+        return self._collection(selector="VYUCUJICI_SEZNAM/VYUCUJICI", cls=Teacher)
 
 
 class NotepadContent(Resource):
@@ -204,11 +207,11 @@ class NotepadContent(Resource):
 
         @property
         def changed(self) -> ChangedSub:
-            return self._klass_init(ChangedSub)
+            return self._cls_init(ChangedSub)
 
     @property
     def students(self) -> list:
-        return self._collection(selector="STUDENT", klass=NotepadContent.StudentSub)
+        return self._collection(selector="STUDENT", cls=NotepadContent.StudentSub)
 
 
 class StudentSub(AbstractPerson):
@@ -303,7 +306,7 @@ class NoteInfo(Resource):
 
     @property
     def changed(self) -> ChangedSub:
-        return self._klass_init(ChangedSub)
+        return self._cls_init(ChangedSub)
 
 
 class NotesList(Resource):
@@ -319,3 +322,74 @@ class Exams(Resource):
     @property
     def series(self):
         return None
+
+
+class NodeMetadata(Resource):
+    def __init__(self, content: RestrictedElement, base_selector="/fmgr/uzel/"):
+        super().__init__(content, base_selector=base_selector)
+        self._subnodes = None
+
+    @property
+    def name(self) -> str:
+        return self("nazev")
+    
+    @property
+    def shortcut(self) -> str:
+        return self("zkratka")
+
+    @property
+    def ordering_weight(self) -> int:
+        return self._i("vaha_pro_razeni")
+
+    @property
+    def updated_at(self) -> str:
+        return self("zmeneno")
+
+    @property
+    def updated_by_uco(self) -> int:
+        return self._i("zmenil_uco")
+
+    @property
+    def updated_by(self) -> str:
+        return self("zmenil_jmeno")
+
+    @property
+    def is_public(self) -> bool:
+        return self("smi_cist_svet") == "1"
+    
+    @property
+    def is_internal(self) -> bool:
+        internal = self("smi_cist_auth")
+        return internal == None or internal == "" or internal == "1"
+    
+    @property
+    def node_id(self) -> int:
+        return self._i("uzel_id")
+    
+    @property
+    def parent_id(self) -> int:
+        return self._i("rodic_id")
+
+    @property
+    def path(self) -> str:
+        return self("cesta")
+    
+    @property
+    def objects_count(self) -> int:
+        return self._i("pocet_objektu")
+
+    @property
+    def subnodes_count(self) -> int:
+        return self._i("pocet_poduzlu")
+
+    @property
+    def metadata_url(self) -> str:
+        return self("url_metadata")
+    
+    @property
+    def subnodes(self) -> List['NodeMetadata']:
+        if self._subnodes == None:
+            self._subnodes = self._collection(selector='poduzly/poduzel', cls=NodeMetadata)
+        return self._subnodes
+    
+    
