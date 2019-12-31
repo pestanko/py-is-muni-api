@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "is-api"
+name = "muni-is-api"
 version = "0.4.1"
 license = "MIT"
 readme = "README.md"
