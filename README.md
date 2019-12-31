@@ -33,9 +33,14 @@ poetry add https://github.com/pestanko/py-is-muni-api.git
 Example usage of the IS API client
 
 ```python
-import is_api
+import muni_is_api
 
-client = is_api.IsApiClient(domain='is.muni.cz', token='secret_token', faculty_id=1000, course_code='PB000')
+client = muni_is_api.IsApiClient(
+        domain='is.muni.cz',
+        token='secret_token',
+        faculty_id=1000,
+        course_code='PB000'
+    )
 
 # Get na course info
 course_info = client.course_info()

@@ -1,6 +1,6 @@
 import responses
 
-from is_api import entities
+from muni_is_api import entities
 from tests import sample, utils
 
 

@@ -1,9 +1,9 @@
 import pytest
 
-import is_api
-import is_api.log_config
+import muni_is_api
+import muni_is_api.log_config
 
-is_api.log_config.load_config()
+muni_is_api.log_config.load_config()
 
 
 @pytest.fixture()
@@ -13,5 +13,5 @@ def stub_params() -> dict:
 
 
 @pytest.fixture()
-def is_stub(stub_params) -> is_api.IsApiClient:
-    return is_api.IsApiClient(**stub_params)
+def is_stub(stub_params) -> muni_is_api.IsApiClient:
+    return muni_is_api.IsApiClient(**stub_params)
