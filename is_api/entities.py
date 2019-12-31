@@ -1,6 +1,5 @@
 import logging
 from typing import List, Optional
-from collections.abc import MutableMapping
 
 from defusedxml.lxml import tostring, RestrictedElement
 
@@ -15,7 +14,7 @@ class Resource:
     @property
     def root(self) -> RestrictedElement:
         return self._content
-    
+
     @property
     def xml(self) -> str:
         string = tostring(self.root, encoding='utf-8', pretty_print=True)
@@ -50,7 +49,7 @@ class Resource:
 
     def __str__(self) -> str:
         return self.xml
-    
+
     def _i(self, item: str, default=None) -> Optional[int]:
         return int(self(item, default=default))
 
@@ -138,7 +137,8 @@ class Teacher(AbstractPerson):
 
 
 class CourseInfo(Resource):
-    def __init__(self, content: RestrictedElement, base_selector="/PREDMET_INFO/"):
+    def __init__(self, content: RestrictedElement,
+                 base_selector="/PREDMET_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     class CourseSub(Resource):
@@ -185,15 +185,22 @@ class CourseInfo(Resource):
 
     @property
     def seminars(self) -> List[Seminar]:
-        return self._collection(selector="SEMINARE/SEMINAR", cls=Seminar)
+        return self._collection(
+                selector="SEMINARE/SEMINAR",
+                cls=Seminar
+            )
 
     @property
     def teachers(self) -> List[Teacher]:
-        return self._collection(selector="VYUCUJICI_SEZNAM/VYUCUJICI", cls=Teacher)
+        return self._collection(
+                selector="VYUCUJICI_SEZNAM/VYUCUJICI",
+                cls=Teacher
+            )
 
 
 class NotepadContent(Resource):
-    def __init__(self, content: RestrictedElement, base_selector="/BLOKY_OBSAH/"):
+    def __init__(self, content: RestrictedElement,
+                 base_selector="/BLOKY_OBSAH/"):
         super().__init__(content, base_selector=base_selector)
 
     class StudentSub(Resource):
@@ -211,7 +218,10 @@ class NotepadContent(Resource):
 
     @property
     def students(self) -> list:
-        return self._collection(selector="STUDENT", cls=NotepadContent.StudentSub)
+        return self._collection(
+                selector="STUDENT",
+                cls=NotepadContent.StudentSub
+            )
 
 
 class StudentSub(AbstractPerson):
@@ -233,7 +243,8 @@ class StudentSub(AbstractPerson):
 
 
 class CourseStudents(Resource):
-    def __init__(self, content: RestrictedElement, base_selector="/PREDMET_STUDENTI_INFO/"):
+    def __init__(self, content: RestrictedElement,
+                 base_selector="/PREDMET_STUDENTI_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
@@ -252,7 +263,8 @@ class SeminarShared(Resource):
 
 
 class SeminarTeachers(Resource):
-    def __init__(self, content: RestrictedElement, base_selector="/SEMINAR_CVICICI_INFO/"):
+    def __init__(self, content: RestrictedElement,
+                 base_selector="/SEMINAR_CVICICI_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
@@ -266,7 +278,8 @@ class SeminarTeachers(Resource):
 
 
 class SeminarStudents(Resource):
-    def __init__(self, content: RestrictedElement, base_selector="/SEMINAR_STUDENTI_INFO/"):
+    def __init__(self, content: RestrictedElement,
+                 base_selector="/SEMINAR_STUDENTI_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
@@ -310,7 +323,8 @@ class NoteInfo(Resource):
 
 
 class NotesList(Resource):
-    def __init__(self, content: RestrictedElement, base_selector="/POZN_BLOKY_INFO/"):
+    def __init__(self, content: RestrictedElement,
+                 base_selector="/POZN_BLOKY_INFO/"):
         super().__init__(content, base_selector=base_selector)
 
     @property
@@ -325,14 +339,15 @@ class Exams(Resource):
 
 
 class NodeMetadata(Resource):
-    def __init__(self, content: RestrictedElement, base_selector="/fmgr/uzel/"):
+    def __init__(self, content: RestrictedElement,
+                 base_selector="/fmgr/uzel/"):
         super().__init__(content, base_selector=base_selector)
         self._subnodes = None
 
     @property
     def name(self) -> str:
         return self("nazev")
-    
+
     @property
     def shortcut(self) -> str:
         return self("zkratka")
@@ -356,16 +371,16 @@ class NodeMetadata(Resource):
     @property
     def is_public(self) -> bool:
         return self("smi_cist_svet") == "1"
-    
+
     @property
     def is_internal(self) -> bool:
         internal = self("smi_cist_auth")
-        return internal == None or internal == "" or internal == "1"
-    
+        return internal is None or internal == "" or internal == "1"
+
     @property
     def node_id(self) -> int:
         return self._i("uzel_id")
-    
+
     @property
     def parent_id(self) -> int:
         return self._i("rodic_id")
@@ -373,7 +388,7 @@ class NodeMetadata(Resource):
     @property
     def path(self) -> str:
         return self("cesta")
-    
+
     @property
     def objects_count(self) -> int:
         return self._i("pocet_objektu")
@@ -385,11 +400,12 @@ class NodeMetadata(Resource):
     @property
     def metadata_url(self) -> str:
         return self("url_metadata")
-    
+
     @property
     def subnodes(self) -> List['NodeMetadata']:
-        if self._subnodes == None:
-            self._subnodes = self._collection(selector='poduzly/poduzel', cls=NodeMetadata)
+        if self._subnodes is None:
+            self._subnodes = self._collection(
+                    selector='poduzly/poduzel',
+                    cls=NodeMetadata
+                )
         return self._subnodes
-    
-    

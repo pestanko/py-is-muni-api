@@ -1,11 +1,11 @@
 import logging
 
 import requests
-from defusedxml.lxml import RestrictedElement, fromstring
+from defusedxml.lxml import RestrictedElement
 
 from typing import List, Dict
 
-from is_api import entities, errors, utils
+from is_api import entities, utils
 
 log = logging.getLogger(__name__)
 
@@ -66,8 +66,7 @@ class IsApiClient:
 
     def course_info(self) -> entities.CourseInfo:
         """
-        URL: https://is.muni.cz/auth/napoveda/technicka/bloky_api?fakulta=1433;obdobi=7024;predmet=990599#predmet-info
-        Returns:
+        Returns(entities.CourseInfo): Course info
 
         """
         log.debug(f"[READ] Course info")
@@ -178,7 +177,7 @@ class IsApiClient:
         return self._create_resource('blok-novy', params)
 
     def notepad_update(self, shortcut: str, uco: int, content: str,
-                       last_change: str=None, override: bool=True) -> entities.Resource:
+                       last_change: str = None, override: bool = True) -> entities.Resource:
         """Updates notepad content
         Args:
             shortcut(str): Notepad shortcut identification
@@ -202,7 +201,7 @@ class IsApiClient:
         log.info(f"[NOTES] Update notepad with params: {params} ")
         return self._create_resource('blok-pis-student-obsah', params)
 
-    def exams_list(self, terminated: bool=False, inactive: bool=False):
+    def exams_list(self, terminated: bool = False, inactive: bool = False):
         """Gets a list of exams
         Args:
             terminated(bool): Also show the students with theirs studies terminated
@@ -217,19 +216,18 @@ class IsApiClient:
             params['vcneaktiv'] = 'a'
         return self._create_resource('terminy-seznam', params)
 
-    def _create_resource(self, operation: str, params: Dict=None, cls=entities.Resource):
+    def _create_resource(self, operation: str, params: Dict = None, cls=entities.Resource):
         params = params or {}
         resp = self.http.operation(operation=operation, **params)
         return cls(resp)
 
 
-
 class HttpClient:
-    __slots__ = ('_session', '__fail', '__faculty_id', 
+    __slots__ = ('_session', '__fail', '__faculty_id',
                  '__course', '__token', '__domain')
 
-    def __init__(self, domain: str, token: str, course_code: str, 
-                        faculty_id: int, fail: bool=True):
+    def __init__(self, domain: str, token: str, course_code: str,
+                 faculty_id: int, fail: bool = True):
         """Creates HTTP Client wrapper
         Args:
             domain(str): Is domain (ex. is.muni.cz)
@@ -244,7 +242,7 @@ class HttpClient:
         self.__faculty_id = faculty_id
         self.__fail = fail
         self._session = None
-    
+
     @property
     def session(self) -> requests.Session:
         if self._session is None:
@@ -291,7 +289,7 @@ class HttpClient:
         Returns: Resource instance
 
         """
-        
+
         prepared = dict(klic=self.__token, fakulta=self.faculty, kod=self.course)
         response = utils.make_get_request(
             session=self.session,
@@ -303,6 +301,6 @@ class HttpClient:
         resource = utils.serialize(response=response)
         log.debug(f"[SERIAL] Serialized response: {resource}")
         return resource
-       
+
     def __str__(self):
         return f"[{self.domain}]: (FAC={self.faculty}, COURSE={self.course})"
