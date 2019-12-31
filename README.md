@@ -1,12 +1,13 @@
 # IS MUNI API python wrapper
 
-Python wrapper for the IS MUNI API. 
+Python wrapper for the IS MUNI API.
 The IS MUNI Notes API documentation can be found [here](https://is.muni.cz/napoveda/technicka/bloky_api?lang=en).
 
-The output format 
+The output format
 
 ## Getting Started
 
+Build status [![CircleCI](https://circleci.com/gh/pestanko/py-is-muni-api.svg?style=svg)](https://circleci.com/gh/pestanko/py-is-muni-api)
 
 ### Prerequisites
 
