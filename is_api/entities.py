@@ -1,5 +1,6 @@
 import logging
 from typing import List, Optional
+from collections.abc import MutableMapping
 
 from defusedxml.lxml import tostring, RestrictedElement
 

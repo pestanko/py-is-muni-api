@@ -3,6 +3,8 @@ import logging
 import requests
 from defusedxml.lxml import RestrictedElement, fromstring
 
+from typing import List, Dict
+
 from is_api import entities, errors
 
 log = logging.getLogger(__name__)
@@ -12,10 +14,10 @@ URL: https://is.muni.cz/auth/napoveda/technicka/bloky_api?fakulta=1433;obdobi=70
 """
 
 
-def params_serialize(params: dict) -> str:
+def params_serialize(params: Dict) -> str:
     """Serializes params to an url
     Args:
-        params: dictionary of params
+        params(Dict): dictionary of params
 
     Returns(str): path url
 
@@ -37,13 +39,14 @@ def serialize(response: requests.Response) -> RestrictedElement:
     """Serialize xml response to the dict
     Args:
         response(requests.Response): XML response
-    Returns(dict): Serialized dictionary
+    Returns(Dict): Serialized dictionary
     """
     return fromstring(response.content)
 
 
 class HttpClient:
-    def __init__(self, domain: str, token: str, course_code: str, faculty_id: int, fail=True):
+    def __init__(self, domain: str, token: str, course_code: str, 
+                        faculty_id: int, fail: bool=True):
         """Creates HTTP Client wrapper
         Args:
             domain(str): Is domain (ex. is.muni.cz)
@@ -196,7 +199,7 @@ class IsApiClient:
 
         """
         log.debug(f"[READ] Course info")
-        return self._create_resource('predmet-info', {}, klass=entities.CourseInfo)
+        return self._create_resource('predmet-info', {}, cls=entities.CourseInfo)
 
     def course_list_students(self, registered: bool = False, terminated: bool = False,
                              inactive: bool = False) -> entities.CourseStudents:
@@ -221,14 +224,14 @@ class IsApiClient:
             params['vcneaktiv'] = 'a'
         log.debug(f"[LIST] Get list of students in the course with params: {params}")
         return self._create_resource('predmet-seznam', params,
-                                     klass=entities.CourseStudents)
+                                     cls=entities.CourseStudents)
 
-    def seminar_list_students(self, seminars: list, terminated: bool = False,
+    def seminar_list_students(self, seminars: List[str], terminated: bool = False,
                               inactive: bool = False) -> entities.SeminarStudents:
         """List students in the seminars
 
         Args:
-            seminars(list[str]): List of seminars
+            seminars(List[str]): List of seminars
             terminated(bool): Also show the students with theirs studies terminated
             inactive(bool): Also show an inactive students
 
@@ -243,9 +246,9 @@ class IsApiClient:
 
         log.debug(f"[LIST] Get list of students in the course's seminaries with params: {params}")
         return self._create_resource('seminar-seznam', params,
-                                     klass=entities.SeminarStudents)
+                                     cls=entities.SeminarStudents)
 
-    def seminar_list_teachers(self, seminars: list) -> entities.SeminarTeachers:
+    def seminar_list_teachers(self, seminars: List[str]) -> entities.SeminarTeachers:
         """List teachers in the seminars
 
         Args:
@@ -256,13 +259,13 @@ class IsApiClient:
         params = {'seminar': seminars}
         log.debug(f"[LIST] Get list of teachers in the course's seminaries with params: {params}")
         return self._create_resource('seminar-cvicici-seznam', params,
-                                     klass=entities.SeminarTeachers)
+                                     cls=entities.SeminarTeachers)
 
-    def notepad_content(self, shortcut: str, *ucos) -> entities.NotepadContent:
+    def notepad_content(self, shortcut: str, ucos: List[int] = None) -> entities.NotepadContent:
         """Gets notepad content
         Args:
             shortcut(str): Shortcut name of the notepad
-            *ucos: List of students' ucos
+            ucos(List[int]): List of students' ucos
 
         Returns(Resource): Resource instance
         """
@@ -270,14 +273,14 @@ class IsApiClient:
         if ucos:
             params['uco'] = ucos
         log.debug(f"[READ] Get notepad content with params: {params}")
-        return self._create_resource('blok-dej-obsah', params, klass=entities.NotepadContent)
+        return self._create_resource('blok-dej-obsah', params, cls=entities.NotepadContent)
 
     def notepad_list(self) -> entities.NotesList:
         """List of all notepads
         Returns(Resource): Gets instance of the resources
         """
         log.debug(f"[LIST] Get notepads list.")
-        return self._create_resource('bloky-seznam', {}, klass=entities.NotesList)
+        return self._create_resource('bloky-seznam', {}, cls=entities.NotesList)
 
     def notepad_new(self, name: str, shortcut: str,
                     visible: bool = False, complete: bool = True,
@@ -287,16 +290,13 @@ class IsApiClient:
             name(str): Name of the notepad
             shortcut(str): shortcut of the notepad
             visible(bool): Should the notepad be visible
-            complete(bool):
+            complete(bool): Shoult not be completed
             statistic(bool): Should the statistic be generated
 
         Returns(entities.Resource):
 
         """
-        params = dict(
-            jmeno=name,
-            zkratka=shortcut
-        )
+        params = dict(jmeno=name, zkratka=shortcut)
 
         params['nahlizi'] = 'a' if visible else 'n'
         params['nedoplnovat'] = 'a' if not complete else 'n'
@@ -305,15 +305,15 @@ class IsApiClient:
         log.info(f"[NOTES] Create notepad with params: {params} ")
         return self._create_resource('blok-novy', params)
 
-    def notepad_update(self, shortcut, uco, content,
-                       last_change=None, override=True) -> entities.Resource:
+    def notepad_update(self, shortcut: str, uco: int, content: str,
+                       last_change: str=None, override: bool=True) -> entities.Resource:
         """Updates notepad content
         Args:
             shortcut(str): Notepad shortcut identification
             uco(str): UCO
             content(str): Content
             last_change(str): Format: YYYYMMDDHH24MISS
-            override(true): Overrides the content
+            override(bool): Overrides the content
 
         Returns(etree.Element): Parsed XML response
         """
@@ -330,7 +330,7 @@ class IsApiClient:
         log.info(f"[NOTES] Update notepad with params: {params} ")
         return self._create_resource('blok-pis-student-obsah', params)
 
-    def exams_list(self, terminated=False, inactive=False):
+    def exams_list(self, terminated: bool=False, inactive: bool=False):
         """Gets a list of exams
         Args:
             terminated(bool): Also show the students with theirs studies terminated
@@ -345,7 +345,7 @@ class IsApiClient:
             params['vcneaktiv'] = 'a'
         return self._create_resource('terminy-seznam', params)
 
-    def _create_resource(self, operation, params=None, klass=entities.Resource):
+    def _create_resource(self, operation: str, params: Dict=None, cls=entities.Resource):
         params = params or {}
         resp = self.http.operation(operation=operation, **params)
-        return klass(resp)
+        return cls(resp)
