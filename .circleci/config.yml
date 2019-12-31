@@ -1,50 +1,48 @@
 version: 2
 jobs:
-    # Building and testing the project
-    build-and-test:
-      docker:
-        - image: circleci/python:3.6.8
+  # Building and testing the project
+  build-and-test:
+    docker:
+      - image: circleci/python:3.6.8
 
     # The steps for our build-and-test
     steps:
-        # Get the code
-        - checkout
+      # Get the code
+      - checkout
 
-    # Restore cache
-    - restore_cache:
-        keys: 
-          - deps-{{ checksum "poetry.lock" }}
+      # Restore cache
+      - restore_cache:
+          keys:
+            - deps-{{ checksum "poetry.lock" }}
 
-    # Install the dependencies
-    - run:
-        name: Install Dependencies
-        command: |
-          poetry install
+      # Install the dependencies
+      - run:
+          name: Install Dependencies
+          command: |
+            poetry install
 
-    # Save the cache
-    - save_cache:
-        key: deps-{{ checksum "poetry.lock" }}
-        paths: 
-          - /home/circleci/.cache/pypoetry/virtualenvs
+      # Save the cache
+      - save_cache:
+          key: deps-{{ checksum "poetry.lock" }}
+          paths:
+            - /home/circleci/.cache/pypoetry/virtualenvs
 
-    # Run tests and coverage
-    - run:
-        name: Run Pytest, report coverage
-        command: |
-          poetry run coverage run --omit="/home/circleci/.cache/pypoetry/virtualenvs" -m pytest
-          poetry run coveralls
+      # Run tests and coverage
+      - run:
+          name: Run Pytest, report coverage
+          command: |
+            poetry run coverage run --omit="/home/circleci/.cache/pypoetry/virtualenvs" -m pytest
+            poetry run coveralls
 
-    # Run flake8 
-    - run:
-        name: Run flake8
-        command: |
-          poetry run flake8 .
-    
+      # Run flake8
+      - run:
+          name: Run flake8
+          command: |
+            poetry run flake8 .
+
 workflows:
-    version: 2
+  version: 2
 
-    build-and-test-workflow:
-        jobs:
-          - build-and-test
-    
-  
+  build-and-test-workflow:
+    jobs:
+      - build-and-test
